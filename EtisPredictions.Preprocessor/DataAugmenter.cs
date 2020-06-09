@@ -10,9 +10,11 @@ namespace EtisPredictions.Preprocessor
     {
         private readonly double _minLevel;
         private readonly double _maxLevel;
+        private readonly Layout _layout;
 
-        public DataAugmenter(double minLevel = 0.95, double maxLevel = 1.05)
+        public DataAugmenter(Layout layout, double minLevel = 0.95, double maxLevel = 1.05)
         {
+            _layout = layout;
             _minLevel = minLevel;
             _maxLevel = maxLevel;
         }
@@ -41,11 +43,10 @@ namespace EtisPredictions.Preprocessor
                 for (var i = 0; i < times; i++)
                 {
                     var augmented = new List<string>();
-                    augmented.AddRange(data[..9]);
-                    augmented.Add(Augment(random, data[9]).ToString(CultureInfo.InvariantCulture));
-                    augmented.Add(data[10]);
-                    augmented.Add(Math.Clamp(Augment(random, data[11]), 0, 100).ToString(CultureInfo.InvariantCulture));
-                    augmented.Add(Math.Clamp(Augment(random, data[12]), 0, 100).ToString(CultureInfo.InvariantCulture));
+                    augmented.AddRange(data[.._layout.Grant]);
+                    augmented.Add(Augment(random, data[_layout.Grant]).ToString(CultureInfo.InvariantCulture));
+                    augmented.AddRange(data[(_layout.Grant.Value + 1).._layout.Score]);
+                    augmented.Add(Math.Clamp(Augment(random, data[_layout.Score]), 0, 100).ToString(CultureInfo.InvariantCulture));
 
                     await writer.WriteLineAsync(string.Join(',', augmented));
                 }

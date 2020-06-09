@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Threading.Tasks;
 
 namespace EtisPredictions.Preprocessor
@@ -14,18 +13,11 @@ namespace EtisPredictions.Preprocessor
 
         static async Task Main()
         {
-            await new StatEnhancer().AddStatisticsParams(InputFile, BufferFile(1));
-            await new DataAugmenter().AddAugmentedData(BufferFile(1), BufferFile(2));
+            var layout = new Layout();
+            await new StatEnhancer(layout).AddStatisticsParams(InputFile, BufferFile(1));
+            await new DataAugmenter(layout).AddAugmentedData(BufferFile(1), BufferFile(2));
             await new DataShuffler().ShuffleData(BufferFile(2));
-            await new OneHotEncoder().UseOneHotEncoding(BufferFile(2), OutputFile);
-        }
-
-        public struct Layout
-        {
-            public Index Year;
-            public Index Term;
-            public Index Category;
-            public Index Subject;
+            await new OneHotEncoder(layout).UseOneHotEncoding(BufferFile(2), OutputFile);
         }
     }
 }

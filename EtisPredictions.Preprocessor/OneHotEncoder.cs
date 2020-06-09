@@ -7,6 +7,7 @@ namespace EtisPredictions.Preprocessor
 {
     public class OneHotEncoder
     {
+        private readonly Layout _layout;
         private readonly bool _oneHotYears;
         private readonly bool _oneHotTerms;
         private readonly bool _oneHotCategories;
@@ -15,38 +16,27 @@ namespace EtisPredictions.Preprocessor
         private const int Terms = 12;
         private const int Categories = 10;
         private const int Subjects = 50;
-        private const int OtherParams = 8;
 
-        public OneHotEncoder(
+        public OneHotEncoder(Layout layout,
             bool oneHotYears = true,
             bool oneHotTerms = true,
             bool oneHotCategories = true,
-            bool oneHotSubjects = true
-        )
+            bool oneHotSubjects = true)
         {
+            _layout = layout;
             _oneHotYears = oneHotYears;
             _oneHotTerms = oneHotTerms;
             _oneHotCategories = oneHotCategories;
             _oneHotSubjects = oneHotSubjects;
         }
 
-        private int CountFeatures()
-        {
-            return (_oneHotYears ? Years : 1) +
-                   (_oneHotTerms ? Terms : 1) +
-                   (_oneHotCategories ? Categories : 1) +
-                   (_oneHotSubjects ? Subjects : 1) + OtherParams;
-        }
-
         public async Task UseOneHotEncoding(string from, string to)
         {
             using var reader = new StreamReader(@from);
             await using var writer = new StreamWriter(to);
-            var features = CountFeatures();
 
-            await SkipHeadersRows(reader);
-            await WriteFirstHeaders(writer, features);
-            await WriteSecondHeaders(writer);
+            await WriteFirstHeaders(writer, await reader.ReadLineAsync());
+            await WriteSecondHeaders(writer, await reader.ReadLineAsync());
 
             while (!reader.EndOfStream)
             {
@@ -61,41 +51,42 @@ namespace EtisPredictions.Preprocessor
                 var processed = new List<string>();
                 if (_oneHotYears)
                 {
-                    processed.AddRange(ToOneHot(data[0], Years));
+                    processed.AddRange(ToOneHot(data[_layout.Year], Years));
                 }
                 else
                 {
-                    processed.Add(data[0]);
+                    processed.Add(data[_layout.Year]);
                 }
 
                 if (_oneHotTerms)
                 {
-                    processed.AddRange(ToOneHot(data[1], Terms));
+                    processed.AddRange(ToOneHot(data[_layout.Term], Terms));
                 }
                 else
                 {
-                    processed.Add(data[1]);
+                    processed.Add(data[_layout.Term]);
                 }
 
                 if (_oneHotCategories)
                 {
-                    processed.AddRange(ToOneHot(data[2], Categories));
+                    processed.AddRange(ToOneHot(data[_layout.Category], Categories));
                 }
                 else
                 {
-                    processed.Add(data[2]);
+                    processed.Add(data[_layout.Category]);
                 }
 
                 if (_oneHotSubjects)
                 {
-                    processed.AddRange(ToOneHot(data[3], Subjects));
+                    processed.AddRange(ToOneHot(data[_layout.Subject], Subjects));
                 }
                 else
                 {
-                    processed.Add(data[3]);
+                    processed.Add(data[_layout.Subject]);
                 }
 
-                processed.AddRange(data[4..]);
+                processed.AddRange(data[_layout.UninterestingData]);
+                processed.Add(data[_layout.Score]);
                 await writer.WriteLineAsync(string.Join(',', processed));
             }
         }
@@ -108,44 +99,88 @@ namespace EtisPredictions.Preprocessor
             return encoded;
         }
 
-        private async Task SkipHeadersRows(StreamReader reader)
+        private async Task WriteSecondHeaders(StreamWriter writer, string originalHeaders)
         {
-            _ = await reader.ReadLineAsync();
-            _ = await reader.ReadLineAsync();
-        }
-
-        private async Task WriteSecondHeaders(StreamWriter writer)
-        {
+            var titles = originalHeaders.Split(',').ToArray();
             var secondHeaders = new List<string>();
-            for (var i = 1; i <= Years; i++)
+            if (_oneHotYears)
             {
-                secondHeaders.Add("Курс " + i);
+                for (var i = 1; i <= Years; i++)
+                {
+                    secondHeaders.Add("Курс " + i);
+                }
+            }
+            else
+            {
+                secondHeaders.Add(titles[_layout.Year]);
             }
 
-            for (var i = 1; i <= Terms; i++)
+            if (_oneHotTerms)
             {
-                secondHeaders.Add("Триместр " + i);
+                for (var i = 1; i <= Terms; i++)
+                {
+                    secondHeaders.Add("Триместр " + i);
+                }
+            }
+            else
+            {
+                secondHeaders.Add(titles[_layout.Term]);
             }
 
-            for (var i = 1; i <= Categories; i++)
+            if (_oneHotCategories)
             {
-                secondHeaders.Add("Категория " + i);
+                for (var i = 1; i <= Categories; i++)
+                {
+                    secondHeaders.Add("Категория " + i);
+                }
+            }
+            else
+            {
+                secondHeaders.Add(titles[_layout.Category]);
             }
 
-            for (var i = 1; i <= Subjects; i++)
+            if (_oneHotSubjects)
             {
-                secondHeaders.Add("Предмет" + i);
+                for (var i = 1; i <= Subjects; i++)
+                {
+                    secondHeaders.Add("Предмет " + i);
+                }
+            }
+            else
+            {
+                secondHeaders.Add(titles[_layout.Subject]);
             }
 
-            secondHeaders.Add(
-                "Экзамен (или зачет),Часов аудиторной работы,КТ,Профильный?,Пропусков,Размер стипендии,Наличие интереса,Средний балл по категории в прошлом,Оценка");
+            secondHeaders.AddRange(titles[_layout.UninterestingData]);
+            secondHeaders.Add(titles[_layout.Score]);
             await writer.WriteLineAsync(string.Join(',', secondHeaders));
         }
 
-        private async Task WriteFirstHeaders(StreamWriter writer, int features)
+        private async Task WriteFirstHeaders(StreamWriter writer, string originalHeaders)
         {
+            var originalCount = originalHeaders.Count(c => c == ',');
+            if (_oneHotYears)
+            {
+                originalCount += Years - 1;
+            }
+
+            if (_oneHotTerms)
+            {
+                originalCount += Terms - 1;
+            }
+
+            if (_oneHotCategories)
+            {
+                originalCount += Categories - 1;
+            }
+
+            if (_oneHotSubjects)
+            {
+                originalCount += Subjects - 1;
+            }
+
             var firstHeaders = new List<string>();
-            for (var i = 1; i <= features; i++)
+            for (var i = 1; i <= originalCount; i++)
             {
                 firstHeaders.Add("X" + i);
             }

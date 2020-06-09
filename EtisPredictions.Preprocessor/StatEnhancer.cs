@@ -8,6 +8,7 @@ namespace EtisPredictions.Preprocessor
 {
     public class StatEnhancer
     {
+        private readonly Layout _layout;
         private readonly int _sequenceLength;
         private readonly StatAnalyzer _analyzer;
 
@@ -32,8 +33,9 @@ namespace EtisPredictions.Preprocessor
             }
         }
 
-        public StatEnhancer(int sequenceLength = 30, double defaultValue = 80.0)
+        public StatEnhancer(Layout layout, int sequenceLength = 30, double defaultValue = 80.0)
         {
+            _layout = layout;
             _sequenceLength = sequenceLength;
             _analyzer = new StatAnalyzer(defaultValue);
         }
