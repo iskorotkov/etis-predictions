@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -41,20 +42,21 @@ namespace EtisPredictions.Preprocessor
                 {
                     var augmented = new List<string>();
                     augmented.AddRange(data[..9]);
-                    augmented.Add(Augment(random, data[9]).ToString());
+                    augmented.Add(Augment(random, data[9]).ToString(CultureInfo.InvariantCulture));
                     augmented.Add(data[10]);
-                    augmented.Add(Math.Clamp(Augment(random, data[11]), 0, 100).ToString());
-                    augmented.Add(Math.Clamp(Augment(random, data[12]), 0, 100).ToString());
+                    augmented.Add(Math.Clamp(Augment(random, data[11]), 0, 100).ToString(CultureInfo.InvariantCulture));
+                    augmented.Add(Math.Clamp(Augment(random, data[12]), 0, 100).ToString(CultureInfo.InvariantCulture));
 
                     await writer.WriteLineAsync(string.Join(',', augmented));
                 }
             }
         }
 
-        private int Augment(Random random, string data)
+        private double Augment(Random random, string data)
         {
             var value = double.Parse(data);
-            return random.Next((int) (value * _minLevel), (int) (value * _maxLevel));
+            var multiplier = _minLevel + (_maxLevel - _minLevel) * random.NextDouble();
+            return value * multiplier;
         }
     }
 }
