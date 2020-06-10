@@ -120,7 +120,7 @@ namespace EtisPredictions.Preprocessor
                 "Min", "Max", "Median", "Variance", "Percentile 25", "Percentile 75", "Percentile 10", "Percentile 90"
             });
             newTitles.Add(headersTitles.Last());
-            await writer.WriteLineAsync(string.Join(',', headersTitles));
+            await writer.WriteLineAsync(string.Join(',', newTitles));
         }
     }
 }
