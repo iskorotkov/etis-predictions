@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace EtisPredictions.Preprocessor
@@ -13,11 +14,14 @@ namespace EtisPredictions.Preprocessor
 
         static async Task Main()
         {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            var encoding = Encoding.GetEncoding(1251);
+            
             var layout = new Layout();
-            await new StatEnhancer(layout).AddStatisticsParams(InputFile, BufferFile(1));
-            await new DataAugmenter(layout).AddAugmentedData(BufferFile(1), BufferFile(2));
-            await new DataShuffler().ShuffleData(BufferFile(2));
-            await new OneHotEncoder(layout).UseOneHotEncoding(BufferFile(2), OutputFile);
+            await new StatEnhancer(layout).AddStatisticsParams(InputFile, BufferFile(1), encoding);
+            await new DataAugmenter(layout).AddAugmentedData(BufferFile(1), BufferFile(2), encoding);
+            await new DataShuffler().ShuffleData(BufferFile(2), encoding);
+            await new OneHotEncoder(layout).UseOneHotEncoding(BufferFile(2), OutputFile, encoding);
         }
     }
 }

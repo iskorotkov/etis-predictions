@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 using System.Linq;
+using System.Text;
 
 namespace EtisPredictions.Preprocessor
 {
@@ -40,14 +41,16 @@ namespace EtisPredictions.Preprocessor
             _analyzer = new StatAnalyzer(defaultValue);
         }
 
-        public async Task AddStatisticsParams(string input, string output)
+        public async Task AddStatisticsParams(string input, string output, Encoding encoding)
         {
-            using var reader = new StreamReader(input);
+            using var reader = new StreamReader(input, encoding);
 
             var header1 = await reader.ReadLineAsync();
             var header2 = await reader.ReadLineAsync();
 
-            await using var writer = new StreamWriter(output);
+            await using var file = new FileStream(output, FileMode.Create, FileAccess.Write);
+            await using var writer = new StreamWriter(file, encoding);
+            
             await WriteHeaders(writer, header1, header2);
             while (!reader.EndOfStream)
             {
@@ -62,8 +65,8 @@ namespace EtisPredictions.Preprocessor
 
                     var data = line.Split(',');
 
-                    var current = Element.Parse(data[0], data[1],
-                        data[2], data[3], data[12]);
+                    var current = Element.Parse(data[_layout.Year], data[_layout.Term],
+                        data[_layout.Category], data[_layout.Subject], data[_layout.Score]);
                     sequence.Add(current);
 
                     var previousElements = sequence
@@ -87,14 +90,14 @@ namespace EtisPredictions.Preprocessor
         private async Task WriteLine(StreamWriter writer, string[] data, StatValues stats)
         {
             var result = new List<string>();
-            result.AddRange(data[..^1]);
+            result.AddRange(data[.._layout.Score]);
             result.AddRange(new[]
             {
                 stats.Min, stats.Max, stats.Median, stats.Variance, stats.Percentile25, stats.Percentile75,
                 stats.Percentile10, stats.Percentile90
             }.Select(x => x.ToString(CultureInfo.InvariantCulture)));
-            result.Add(data.Last());
-
+            result.Add(data[_layout.Score]);
+            
             await writer.WriteLineAsync(string.Join(',', result));
         }
 

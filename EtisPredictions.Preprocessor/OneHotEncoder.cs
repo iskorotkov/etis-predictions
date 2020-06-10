@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace EtisPredictions.Preprocessor
@@ -30,10 +31,11 @@ namespace EtisPredictions.Preprocessor
             _oneHotSubjects = oneHotSubjects;
         }
 
-        public async Task UseOneHotEncoding(string from, string to)
+        public async Task UseOneHotEncoding(string from, string to, Encoding encoding)
         {
-            using var reader = new StreamReader(@from);
-            await using var writer = new StreamWriter(to);
+            using var reader = new StreamReader(@from, encoding);
+            await using var file = new FileStream(to, FileMode.Create, FileAccess.Write);
+            await using var writer = new StreamWriter(file, encoding);
 
             await WriteFirstHeaders(writer, await reader.ReadLineAsync());
             await WriteSecondHeaders(writer, await reader.ReadLineAsync());

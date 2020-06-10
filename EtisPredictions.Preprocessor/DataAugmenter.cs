@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace EtisPredictions.Preprocessor
@@ -19,10 +20,11 @@ namespace EtisPredictions.Preprocessor
             _maxLevel = maxLevel;
         }
 
-        public async Task AddAugmentedData(string from, string to, int times = 50)
+        public async Task AddAugmentedData(string from, string to, Encoding encoding, int times = 50)
         {
-            using var reader = new StreamReader(@from);
-            await using var writer = new StreamWriter(to);
+            using var reader = new StreamReader(@from, encoding);
+            await using var file = new FileStream(to, FileMode.Create, FileAccess.Write);
+            await using var writer = new StreamWriter(file, encoding);
 
             await writer.WriteLineAsync(await reader.ReadLineAsync());
             await writer.WriteLineAsync(await reader.ReadLineAsync());

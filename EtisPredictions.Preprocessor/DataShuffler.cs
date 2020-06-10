@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace EtisPredictions.Preprocessor
@@ -22,12 +23,12 @@ namespace EtisPredictions.Preprocessor
             }
         }
 
-        public async Task ShuffleData(string file)
+        public async Task ShuffleData(string file, Encoding encoding)
         {
             var data = new List<string>();
             string header1;
             string header2;
-            using (var reader = new StreamReader(file))
+            using (var reader = new StreamReader(file, encoding))
             {
                 header1 = await reader.ReadLineAsync();
                 header2 = await reader.ReadLineAsync();
@@ -39,7 +40,8 @@ namespace EtisPredictions.Preprocessor
 
             Shuffle(data);
 
-            await using var writer = new StreamWriter(file);
+            await using var fileStream = new FileStream(file, FileMode.Create, FileAccess.Write);
+            await using var writer = new StreamWriter(fileStream, encoding);
             await writer.WriteLineAsync(header1);
             await writer.WriteLineAsync(header2);
             foreach (var line in data)
