@@ -2,7 +2,7 @@
 using System.Linq;
 using MathNet.Numerics.Statistics;
 
-namespace EtisPredictions.Preprocessor
+namespace EtisPredictions.Preprocessor.Statistics
 {
     public class StatAnalyzer
     {

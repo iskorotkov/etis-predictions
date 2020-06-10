@@ -1,4 +1,4 @@
-﻿namespace EtisPredictions.Preprocessor
+﻿namespace EtisPredictions.Preprocessor.Statistics
 {
     public struct StatValues
     {

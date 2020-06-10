@@ -1,11 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Threading.Tasks;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
+using EtisPredictions.Preprocessor.Statistics;
 
-namespace EtisPredictions.Preprocessor
+namespace EtisPredictions.Preprocessor.Passes
 {
     public class StatEnhancer
     {

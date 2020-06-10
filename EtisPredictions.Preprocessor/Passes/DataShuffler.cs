@@ -4,7 +4,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace EtisPredictions.Preprocessor
+namespace EtisPredictions.Preprocessor.Passes
 {
     public class DataShuffler
     {
