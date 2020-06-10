@@ -20,7 +20,7 @@
                 Max = value,
                 Mean = value,
                 Median = value,
-                Variance = 0.0,
+                Variance = value,
                 Percentile10 = value,
                 Percentile25 = value,
                 Percentile75 = value,
