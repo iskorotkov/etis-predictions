@@ -7,22 +7,69 @@ namespace EtisPredictions.Preprocessor
 {
     static class Program
     {
-        private const string BasePath = @"C:\Users\korot\OneDrive\Docs\2019-2020\ИС";
+        private static int _buffersUsed;
+        private static string _buffersFolder;
 
-        private static string InputFile => Path.Combine(BasePath, "raw/input.csv");
-        private static string OutputFile => Path.Combine(BasePath, "processed/output.csv");
-        private static string BufferFile(int index) => Path.Combine(BasePath, $"buffers/{index}.csv");
-
-        static async Task Main()
+        private static string NextBufferFile()
         {
+            var result = Path.Combine(_buffersFolder, $"{_buffersUsed}.csv");
+            _buffersUsed++;
+            return result;
+        }
+
+        private static async Task Main(
+            string trainFile = @"train.csv",
+            string validationFile = @"val.csv",
+            string testFile = @"test.csv",
+            string inputFolder = "input",
+            string outputFolder = "output",
+            string buffers = @"buffers",
+            bool addStats = true,
+            bool augment = true,
+            bool shuffle = true,
+            bool useOhe = true
+        )
+        {
+            _buffersFolder = buffers;
+            
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             var encoding = Encoding.GetEncoding(1251);
-
             var layout = new Layout();
-            await new StatEnhancer(layout).AddStatisticsParams(InputFile, BufferFile(1), encoding);
-            await new DataAugmenter(layout).AddAugmentedData(BufferFile(1), BufferFile(2), encoding);
-            await new DataShuffler().ShuffleData(BufferFile(2), encoding);
-            await new OneHotEncoder(layout).UseOneHotEncoding(BufferFile(2), OutputFile, encoding);
+
+            foreach (var filename in new[] { trainFile, validationFile, testFile })
+            {
+                var from = Path.Combine(inputFolder, filename);
+                var to = NextBufferFile();
+                if (addStats)
+                {
+                    await new StatEnhancer(layout).AddStatisticsParams(from, to, encoding);
+                    from = to;
+                    to = NextBufferFile();
+                }
+
+                if (augment && filename == trainFile)
+                {
+                    await new DataAugmenter(layout).AddAugmentedData(from, to, encoding);
+                    from = to;
+                    to = NextBufferFile();
+
+                }
+
+                if (shuffle)
+                {
+                    await new DataShuffler().ShuffleData(from, encoding);
+
+                }
+
+                if (useOhe)
+                {
+                    await new OneHotEncoder(layout).UseOneHotEncoding(from, to, encoding);
+                    from = to;
+                }
+
+                File.Move(from, Path.Combine(outputFolder, filename), true);
+                _buffersUsed--;
+            }
         }
     }
 }
