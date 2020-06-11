@@ -28,9 +28,9 @@ namespace EtisPredictions.Preprocessor
         private static string _outputFolder;
         private static string _buffers;
 
-        private static string NextBufferFile()
+        private static string NextBufferFile(string extension = "csv")
         {
-            var result = Path.Combine(_buffersFolder, $"{_buffersUsed}.csv");
+            var result = Path.Combine(_buffersFolder, $"{_buffersUsed}.{extension}");
             _buffersUsed++;
             return result;
         }
@@ -50,7 +50,7 @@ namespace EtisPredictions.Preprocessor
             bool augment = true,
             bool shuffle = true,
             bool useOhe = true,
-            bool useXlsx = false
+            bool useXlsx = true
         )
         {
             _buffers = buffers;
@@ -72,22 +72,37 @@ namespace EtisPredictions.Preprocessor
             _encoding = GetCorrectEncoding();
             if (_useXlsx)
             {
+                string? xlsxBuffer = null;
                 foreach (var sheet in new[] { _trainSheet, _valSheet, _testSheet })
                 {
                     var @from = await PrepareXlsxFile(sheet);
                     var buffer = await MakePasses(from, sheet == _trainSheet);
-                    await FinalizeXlsxFile(buffer, sheet);
+                    xlsxBuffer ??= MakeXlsxBuffer();
+                    await FinalizeXlsxFile(buffer, xlsxBuffer, sheet);
                 }
+
+                MoveToOutputFolder(xlsxBuffer, xlsxFile);
             }
             else
             {
                 foreach (var filename in new[] { csvTrainFile, csvValFile, csvTestFile })
                 {
                     var @from = await PrepareCsvFile(filename);
-                    var buffer = await MakePasses(from, filename == _csvTrainFile);
-                    await FinalizeCsvFiles(buffer, filename);
+                    var lastBuffer = await MakePasses(from, filename == _csvTrainFile);
+                    MoveToOutputFolder(lastBuffer, filename);
                 }
             }
+        }
+
+        private static string MakeXlsxBuffer()
+        {
+            var buffer = NextBufferFile("xlsx");
+            if (File.Exists(buffer))
+            {
+                File.Delete(buffer);
+            }
+
+            return buffer;
         }
 
         private static Encoding GetCorrectEncoding()
@@ -114,17 +129,16 @@ namespace EtisPredictions.Preprocessor
             return Task.FromResult(Path.Combine(_inputFolder, sourceFile));
         }
 
-        private static async Task FinalizeXlsxFile(string lastBuffer, string resultSheet)
+        private static async Task FinalizeXlsxFile(string lastBuffer, string xlsxBuffer, string sheet)
         {
             var converter = new CsvToXlsxConverter();
-            await converter.Convert(lastBuffer, Path.Combine(_outputFolder, _xlsxFile), resultSheet);
+            await converter.Convert(lastBuffer, xlsxBuffer, sheet);
         }
 
-        private static Task FinalizeCsvFiles(string lastBuffer, string resultFile)
+        private static void MoveToOutputFolder(string lastBuffer, string resultFile)
         {
             File.Move(lastBuffer, Path.Combine(_outputFolder, resultFile), true);
             _buffersUsed--;
-            return Task.CompletedTask;
         }
 
         private static async Task<string> MakePasses(string from, bool trainSet)

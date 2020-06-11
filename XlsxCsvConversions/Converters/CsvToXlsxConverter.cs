@@ -1,6 +1,5 @@
 ﻿using System.IO;
 using System.Threading.Tasks;
-using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
 
 namespace XlsxCsvConversions.Converters
@@ -11,7 +10,7 @@ namespace XlsxCsvConversions.Converters
         {
             using var reader = new StreamReader(csvName);
             var doc = await ReadXlsxFile(xlsxFile);
-            var sheet = GetClearedSheet(doc, sheetName);
+            var sheet = doc.CreateSheet(sheetName);
             var rowIndex = 0;
             while (!reader.EndOfStream)
             {
@@ -46,20 +45,6 @@ namespace XlsxCsvConversions.Converters
             }
 
             return new XSSFWorkbook();
-        }
-
-        private static ISheet GetClearedSheet(XSSFWorkbook doc, string sheetName)
-        {
-            var sheet = doc.GetSheet(sheetName);
-            if (sheet != null)
-            {
-                foreach (IRow row in sheet)
-                {
-                    row?.Cells.Clear();
-                }
-            }
-
-            return sheet ?? doc.CreateSheet(sheetName);
         }
     }
 }
