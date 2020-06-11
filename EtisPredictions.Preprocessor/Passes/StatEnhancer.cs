@@ -61,7 +61,7 @@ namespace EtisPredictions.Preprocessor.Passes
                     var line = await reader.ReadLineAsync();
                     if (string.IsNullOrWhiteSpace(line))
                     {
-                        return;
+                        break;
                     }
 
                     var data = line.Split(',');

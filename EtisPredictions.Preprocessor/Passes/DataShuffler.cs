@@ -23,12 +23,12 @@ namespace EtisPredictions.Preprocessor.Passes
             }
         }
 
-        public async Task ShuffleData(string file, Encoding encoding)
+        public async Task ShuffleData(string from, string to, Encoding encoding)
         {
             var data = new List<string>();
             string header1;
             string header2;
-            using (var reader = new StreamReader(file, encoding))
+            using (var reader = new StreamReader(from, encoding))
             {
                 header1 = await reader.ReadLineAsync();
                 header2 = await reader.ReadLineAsync();
@@ -40,7 +40,7 @@ namespace EtisPredictions.Preprocessor.Passes
 
             Shuffle(data);
 
-            await using var fileStream = new FileStream(file, FileMode.Create, FileAccess.Write);
+            await using var fileStream = new FileStream(to, FileMode.Create, FileAccess.Write);
             await using var writer = new StreamWriter(fileStream, encoding);
             await writer.WriteLineAsync(header1);
             await writer.WriteLineAsync(header2);
