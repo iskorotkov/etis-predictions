@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,7 +13,7 @@ namespace EtisPredictions.Preprocessor.Passes
         private readonly double _minLevel;
         private readonly double _maxLevel;
         private readonly Layout _layout;
-        private int _times;
+        private readonly int _times;
 
         public DataAugmenter(Layout layout, double minLevel = 0.95, double maxLevel = 1.05, int times = 50)
         {
@@ -40,17 +41,22 @@ namespace EtisPredictions.Preprocessor.Passes
                     break;
                 }
 
-                var data = line.Split(',');
-
                 await writer.WriteLineAsync(line);
 
+                var data = line.Split(',');
                 for (var i = 0; i < _times; i++)
                 {
                     var augmented = new List<string>();
                     augmented.AddRange(data[.._layout.Grant]);
                     augmented.Add(Augment(random, data[_layout.Grant]).ToString(CultureInfo.InvariantCulture));
-                    augmented.AddRange(data[(_layout.Grant.Value + 1).._layout.Score]);
-                    augmented.Add(Math.Clamp(Augment(random, data[_layout.Score]), 0, 100).ToString(CultureInfo.InvariantCulture));
+                    augmented.AddRange(data[(_layout.Grant.Value + 1).._layout.Stats.Start]);
+
+                    augmented.AddRange(data[_layout.Stats]
+                        .Select(value => Augment(random, value)
+                            .ToString(CultureInfo.InvariantCulture)));
+
+                    augmented.Add(Augment(random, data[_layout.Score])
+                        .ToString(CultureInfo.InvariantCulture));
 
                     await writer.WriteLineAsync(string.Join(',', augmented));
                 }

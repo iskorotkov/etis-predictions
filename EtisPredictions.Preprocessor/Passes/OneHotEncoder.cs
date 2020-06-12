@@ -106,7 +106,7 @@ namespace EtisPredictions.Preprocessor.Passes
                     processed.Add(data[_layout.Subject]);
                 }
 
-                processed.AddRange(data[_layout.UninterestingData]);
+                processed.AddRange(data[_layout.NumericValues]);
                 processed.Add(data[_layout.Score]);
                 await writer.WriteLineAsync(string.Join(',', processed));
             }
@@ -174,7 +174,7 @@ namespace EtisPredictions.Preprocessor.Passes
                 secondHeaders.Add(titles[_layout.Subject]);
             }
 
-            secondHeaders.AddRange(titles[_layout.UninterestingData]);
+            secondHeaders.AddRange(titles[_layout.NumericValues]);
             secondHeaders.Add(titles[_layout.Score]);
             await writer.WriteLineAsync(string.Join(',', secondHeaders));
         }

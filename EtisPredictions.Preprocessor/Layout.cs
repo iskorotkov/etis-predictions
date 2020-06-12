@@ -4,14 +4,20 @@ namespace EtisPredictions.Preprocessor
 {
     public class Layout
     {
-        public Index Year;
-        public Index Term;
-        public Index Category;
-        public Index Subject;
-        public Index Grant;
-        public Index Score;
+        public Index Year { get; }
+        public Index Term { get; }
+        public Index Category { get; }
+        public Index Subject { get; }
+        public Index Grant { get; }
+        public Index Score { get; }
 
-        public Range UninterestingData;
+        public Range NumericValues { get; private set; }
+        public Range Stats { get; private set; }
+
+        public void AddStats(int size)
+        {
+            Stats = new Range(new Index(Score.Value + size, true), Score);
+        }
 
         public Layout()
         {
@@ -21,7 +27,8 @@ namespace EtisPredictions.Preprocessor
             Subject = 3;
             Grant = 9;
             Score = ^1;
-            UninterestingData = new Range(Subject.Value + 1, Score);
+            NumericValues = new Range(Subject.Value + 1, Score);
+            Stats = new Range(Score, Score);
         }
     }
 }

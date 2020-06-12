@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -8,35 +9,41 @@ using EtisPredictions.Preprocessor.Statistics;
 
 namespace EtisPredictions.Preprocessor.Passes
 {
-    public class StatEnhancer: IPass
+    public class StatEnhancer : IPass
     {
+        private readonly int _statsSize;
+        private readonly StatAnalyzer _analyzer;
         private readonly Layout _layout;
         private readonly int _sequenceLength;
-        private readonly StatAnalyzer _analyzer;
 
-        private struct Element
+        private struct Stat
         {
-            public int Year;
-            public int Term;
-            public int Category;
-            public int Subject;
-            public double Score;
+            public string Header { get; }
+            public Func<StatValues, double> Expr { get; }
 
-            public static Element Parse(string year, string term, string category, string subject, string score)
+            public Stat(string header, Func<StatValues, double> expr)
             {
-                return new Element
-                {
-                    Year = int.Parse(year),
-                    Term = int.Parse(term),
-                    Category = int.Parse(category),
-                    Subject = int.Parse(subject),
-                    Score = double.Parse(score)
-                };
+                Header = header;
+                Expr = expr;
             }
         }
 
+        private static readonly Stat[] StatsHeaders =
+        {
+            new Stat("Min", x => x.Min),
+            new Stat("Max", x => x.Max),
+            new Stat("Mean", x => x.Mean),
+            new Stat("Median", x => x.Median),
+            new Stat("Variance", x => x.Variance),
+            new Stat("Percentile 10", x => x.Percentile10),
+            new Stat("Percentile 25", x => x.Percentile25),
+            new Stat("Percentile 75", x => x.Percentile75),
+            new Stat("Percentile 90", x => x.Percentile90)
+        };
+
         public StatEnhancer(Layout layout, int sequenceLength = 30, double defaultValue = 80.0)
         {
+            _statsSize = StatsHeaders.Length;
             _layout = layout;
             _sequenceLength = sequenceLength;
             _analyzer = new StatAnalyzer(defaultValue);
@@ -51,7 +58,7 @@ namespace EtisPredictions.Preprocessor.Passes
 
             await using var file = new FileStream(destination, FileMode.Create, FileAccess.Write);
             await using var writer = new StreamWriter(file, encoding);
-            
+
             await WriteHeaders(writer, header1, header2);
             while (!reader.EndOfStream)
             {
@@ -87,6 +94,7 @@ namespace EtisPredictions.Preprocessor.Passes
                 }
             }
 
+            _layout.AddStats(_statsSize);
             return destination;
         }
 
@@ -94,19 +102,16 @@ namespace EtisPredictions.Preprocessor.Passes
         {
             var result = new List<string>();
             result.AddRange(data[.._layout.Score]);
-            result.AddRange(new[]
-            {
-                stats.Min, stats.Max, stats.Median, stats.Variance, stats.Percentile25, stats.Percentile75,
-                stats.Percentile10, stats.Percentile90
-            }.Select(x => x.ToString(CultureInfo.InvariantCulture)));
+            result.AddRange(StatsHeaders.Select(h =>
+                h.Expr(stats).ToString(CultureInfo.InvariantCulture)));
             result.Add(data[_layout.Score]);
-            
+
             await writer.WriteLineAsync(string.Join(',', result));
         }
 
         private async Task WriteHeaders(StreamWriter writer, string header1, string header2)
         {
-            var headersCount = header1.Split(',').Length + 8;
+            var headersCount = header1.Split(',').Length + _statsSize;
             var newMarks = new List<string>();
             for (var i = 1; i < headersCount; i++)
             {
@@ -118,12 +123,30 @@ namespace EtisPredictions.Preprocessor.Passes
 
             var headersTitles = header2.Split(',');
             var newTitles = headersTitles[..^1].ToList();
-            newTitles.AddRange(new[]
-            {
-                "Min", "Max", "Median", "Variance", "Percentile 25", "Percentile 75", "Percentile 10", "Percentile 90"
-            });
+            newTitles.AddRange(StatsHeaders.Select(h => h.Header));
             newTitles.Add(headersTitles.Last());
             await writer.WriteLineAsync(string.Join(',', newTitles));
+        }
+
+        private struct Element
+        {
+            public int Year;
+            public int Term;
+            public int Category;
+            public int Subject;
+            public double Score;
+
+            public static Element Parse(string year, string term, string category, string subject, string score)
+            {
+                return new Element
+                {
+                    Year = int.Parse(year),
+                    Term = int.Parse(term),
+                    Category = int.Parse(category),
+                    Subject = int.Parse(subject),
+                    Score = double.Parse(score)
+                };
+            }
         }
     }
 }
