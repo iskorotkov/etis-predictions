@@ -1,7 +1,9 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using EtisPredictions.Preprocessor.Passes;
+using EtisPredictions.Preprocessor.Sets;
 using XlsxCsvConversions.Converters;
 
 namespace EtisPredictions.Preprocessor
@@ -14,19 +16,15 @@ namespace EtisPredictions.Preprocessor
         private static bool _augment;
         private static bool _shuffle;
         private static bool _useOhe;
-        private static string _csvTrainFile;
-        private static string _csvValFile;
-        private static string _csvTestFile;
-        private static string _xlsxFile;
-        private static string _trainSheet;
-        private static string _valSheet;
-        private static string _testSheet;
         private static bool _useXlsx;
         private static Layout _layout = new Layout();
         private static Encoding _encoding;
-        private static string _inputFolder;
-        private static string _outputFolder;
-        private static string _buffers;
+        private static string _output;
+        private static double _valRate;
+        private static double _testRate;
+        private static string _inputFile;
+        private static bool _clearBuffers;
+        private static string _sheetName;
 
         private static string NextBufferFile(string extension = "csv")
         {
@@ -36,65 +34,73 @@ namespace EtisPredictions.Preprocessor
         }
 
         private static async Task Main(
-            string csvTrainFile = "train.csv",
-            string csvValFile = "val.csv",
-            string csvTestFile = "test.csv",
-            string xlsxFile = "dataset.xlsx",
-            string trainSheet = "train",
-            string valSheet = "val",
-            string testSheet = "test",
-            string inputFolder = "input",
-            string outputFolder = "output",
+            string input = "input/dataset.xlsx",
+            string sheet = "dataset",
+            string output = "output",
             string buffers = "buffers",
-            bool addStats = true,
+            double valRate = 0.15,
+            double testRate = 0.15,
+            bool stats = true,
             bool augment = true,
             bool shuffle = true,
-            bool useOhe = true,
-            bool useXlsx = true
+            bool ohe = true,
+            bool xlsx = true,
+            bool cleanup = true
         )
         {
-            _buffers = buffers;
-            _outputFolder = outputFolder;
-            _inputFolder = inputFolder;
-            _useXlsx = useXlsx;
-            _testSheet = testSheet;
-            _valSheet = valSheet;
-            _trainSheet = trainSheet;
-            _xlsxFile = xlsxFile;
-            _csvTestFile = csvTestFile;
-            _csvValFile = csvValFile;
-            _csvTrainFile = csvTrainFile;
-            _useOhe = useOhe;
+            _sheetName = sheet;
+            _clearBuffers = cleanup;
+            _inputFile = input;
+            _testRate = testRate;
+            _valRate = valRate;
+            _output = output;
+            _useXlsx = xlsx;
+            _useOhe = ohe;
             _shuffle = shuffle;
             _augment = augment;
-            _addStats = addStats;
+            _addStats = stats;
             _buffersFolder = buffers;
             _encoding = GetCorrectEncoding();
+
             if (_useXlsx)
             {
-                string? xlsxBuffer = null;
-                foreach (var sheet in new[] { _trainSheet, _valSheet, _testSheet })
-                {
-                    var @from = await PrepareXlsxFile(sheet);
-                    var buffer = await MakePasses(from, sheet == _trainSheet);
-                    xlsxBuffer ??= MakeXlsxBuffer();
-                    await FinalizeXlsxFile(buffer, xlsxBuffer, sheet);
-                }
+                _inputFile = await MakeCsvFile();
+            }
 
-                MoveToOutputFolder(xlsxBuffer, xlsxFile);
+            var resultFiles = await MakePasses(_inputFile);
+            if (_useXlsx)
+            {
+                var xlsxResult = await MergeIntoXlsx(resultFiles);
+                MoveToOutputFolder(xlsxResult);
             }
             else
             {
-                foreach (var filename in new[] { csvTrainFile, csvValFile, csvTestFile })
+                MoveToOutputFolder(resultFiles);
+            }
+
+            Cleanup();
+        }
+
+        private static void MoveToOutputFolder(Files files)
+        {
+            foreach (var info in files.GetInfo())
+            {
+                File.Move(info.Filename, Path.Join(_output, info.Set));
+            }
+        }
+
+        private static void Cleanup()
+        {
+            if (_clearBuffers)
+            {
+                foreach (var file in Directory.EnumerateFiles(_buffersFolder))
                 {
-                    var @from = await PrepareCsvFile(filename);
-                    var lastBuffer = await MakePasses(from, filename == _csvTrainFile);
-                    MoveToOutputFolder(lastBuffer, filename);
+                    File.Delete(file);
                 }
             }
         }
 
-        private static string MakeXlsxBuffer()
+        private static string PrepareXlsxBuffer()
         {
             var buffer = NextBufferFile("xlsx");
             if (File.Exists(buffer))
@@ -116,59 +122,77 @@ namespace EtisPredictions.Preprocessor
             return Encoding.GetEncoding(1251);
         }
 
-        private static async Task<string> PrepareXlsxFile(string sheet)
+        private static async Task<string> MakeCsvFile()
         {
             var converter = new XlsxToCsvConverter();
             var csvFile = NextBufferFile();
-            await converter.Convert(Path.Combine(_inputFolder, _xlsxFile), sheet, csvFile);
+            await converter.Convert(_inputFile, _sheetName, csvFile);
             return csvFile;
         }
 
-        private static Task<string> PrepareCsvFile(string sourceFile)
+        private static async Task<string> MergeIntoXlsx(Files files)
         {
-            return Task.FromResult(Path.Combine(_inputFolder, sourceFile));
-        }
-
-        private static async Task FinalizeXlsxFile(string lastBuffer, string xlsxBuffer, string sheet)
-        {
+            var buffer = PrepareXlsxBuffer();
             var converter = new CsvToXlsxConverter();
-            await converter.Convert(lastBuffer, xlsxBuffer, sheet);
+            foreach (var info in files.GetInfo())
+            {
+                await converter.Convert(info.Filename, buffer, info.Set);
+            }
+
+            return buffer;
         }
 
-        private static void MoveToOutputFolder(string lastBuffer, string resultFile)
+        private static void MoveToOutputFolder(string from)
         {
-            File.Move(lastBuffer, Path.Combine(_outputFolder, resultFile), true);
+            File.Move(from, _output, true);
             _buffersUsed--;
         }
 
-        private static async Task<string> MakePasses(string from, bool trainSet)
+        private static async Task<Files> MakePasses(string from)
         {
             if (_addStats)
             {
                 var to = NextBufferFile();
-                await new StatEnhancer(_layout).AddStatisticsParams(@from, to, _encoding);
-                @from = to;
+                await new StatEnhancer(_layout).AddStatisticsParams(from, to, _encoding);
+                from = to;
             }
 
-            if (_augment && trainSet)
+            var trainFile = NextBufferFile();
+            var valFile = NextBufferFile();
+            var testFile = NextBufferFile();
+            var files = new Files(trainFile, valFile, testFile);
+            await new SetSplit().Split(from, files, new Rates(_valRate, _testRate), _encoding);
+
+            var resultFiles = new List<string>();
+            foreach (var info in files.GetInfo())
+            {
+                resultFiles.Add(await MakePassesOnSet(info.Filename, info.IsTrain));
+            }
+
+            return new Files(resultFiles[0], resultFiles[1], resultFiles[2]);
+        }
+
+        private static async Task<string> MakePassesOnSet(string from, bool train)
+        {
+            if (_augment && train)
             {
                 var to = NextBufferFile();
-                await new DataAugmenter(_layout).AddAugmentedData(@from, to, _encoding);
-                @from = to;
+                await new DataAugmenter(_layout).AddAugmentedData(from, to, _encoding);
+                from = to;
             }
 
             if (_shuffle)
             {
                 var to = NextBufferFile();
-                await new DataShuffler().ShuffleData(@from, to, _encoding);
+                await new DataShuffler().ShuffleData(from, to, _encoding);
                 from = to;
             }
 
             if (_useOhe)
             {
                 var to = NextBufferFile();
-                await new OneHotEncoder(_layout).UseOneHotEncoding(@from, to, _encoding);
-                @from = to;
+                await new OneHotEncoder(_layout).UseOneHotEncoding(from, to, _encoding);
+                from = to;
             }
 
             return from;
