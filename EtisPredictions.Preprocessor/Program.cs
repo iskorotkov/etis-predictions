@@ -25,6 +25,7 @@ namespace EtisPredictions.Preprocessor
         private static string _inputFile;
         private static bool _clearBuffers;
         private static string _sheetName;
+        private static OneHotEncoder.OheConfig _config;
 
         private static string NextBufferFile(string extension = "csv")
         {
@@ -40,6 +41,10 @@ namespace EtisPredictions.Preprocessor
             string buffers = "buffers",
             double valRate = 0.15,
             double testRate = 0.15,
+            int years = 4,
+            int terms = 12,
+            int categories = 10,
+            int subjects = 50,
             bool stats = true,
             bool augment = true,
             bool shuffle = true,
@@ -60,6 +65,7 @@ namespace EtisPredictions.Preprocessor
             _augment = augment;
             _addStats = stats;
             _buffersFolder = buffers;
+            _config = new OneHotEncoder.OheConfig(years, terms, categories, subjects);
             _encoding = GetCorrectEncoding();
 
             if (_useXlsx)
@@ -191,7 +197,7 @@ namespace EtisPredictions.Preprocessor
             if (_useOhe)
             {
                 var to = NextBufferFile();
-                await new OneHotEncoder(_layout).UseOneHotEncoding(from, to, _encoding);
+                await new OneHotEncoder(_layout, _config).UseOneHotEncoding(from, to, _encoding);
                 from = to;
             }
 

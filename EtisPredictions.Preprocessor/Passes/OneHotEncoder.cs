@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -13,22 +14,40 @@ namespace EtisPredictions.Preprocessor.Passes
         private readonly bool _oneHotTerms;
         private readonly bool _oneHotCategories;
         private readonly bool _oneHotSubjects;
-        private const int Years = 4;
-        private const int Terms = 12;
-        private const int Categories = 10;
-        private const int Subjects = 50;
+        private OheConfig _config;
 
-        public OneHotEncoder(Layout layout,
-            bool oneHotYears = true,
-            bool oneHotTerms = true,
-            bool oneHotCategories = true,
-            bool oneHotSubjects = true)
+        public OneHotEncoder(
+            Layout layout,
+            OheConfig config
+        )
         {
+            _config = config;
             _layout = layout;
-            _oneHotYears = oneHotYears;
-            _oneHotTerms = oneHotTerms;
-            _oneHotCategories = oneHotCategories;
-            _oneHotSubjects = oneHotSubjects;
+            _oneHotYears = _config.Years > 1;
+            _oneHotTerms = _config.Terms > 1;
+            _oneHotCategories = _config.Categories > 1;
+            _oneHotSubjects = _config.Subjects > 1;
+        }
+
+        public class OheConfig
+        {
+            public OheConfig(int years, int terms, int categories, int subjects)
+            {
+                if (years <= 0 || terms <= 0 || categories <= 0 || subjects <= 0)
+                {
+                    throw new ArgumentException("Can't encode categories with non-positive number of values.");
+                }
+
+                Years = years;
+                Terms = terms;
+                Categories = categories;
+                Subjects = subjects;
+            }
+
+            public int Years { get; }
+            public int Terms { get; }
+            public int Categories { get; }
+            public int Subjects { get; }
         }
 
         public async Task UseOneHotEncoding(string from, string to, Encoding encoding)
@@ -53,7 +72,7 @@ namespace EtisPredictions.Preprocessor.Passes
                 var processed = new List<string>();
                 if (_oneHotYears)
                 {
-                    processed.AddRange(ToOneHot(data[_layout.Year], Years));
+                    processed.AddRange(ToOneHot(data[_layout.Year], _config.Years));
                 }
                 else
                 {
@@ -62,7 +81,7 @@ namespace EtisPredictions.Preprocessor.Passes
 
                 if (_oneHotTerms)
                 {
-                    processed.AddRange(ToOneHot(data[_layout.Term], Terms));
+                    processed.AddRange(ToOneHot(data[_layout.Term], _config.Terms));
                 }
                 else
                 {
@@ -71,7 +90,7 @@ namespace EtisPredictions.Preprocessor.Passes
 
                 if (_oneHotCategories)
                 {
-                    processed.AddRange(ToOneHot(data[_layout.Category], Categories));
+                    processed.AddRange(ToOneHot(data[_layout.Category], _config.Categories));
                 }
                 else
                 {
@@ -80,7 +99,7 @@ namespace EtisPredictions.Preprocessor.Passes
 
                 if (_oneHotSubjects)
                 {
-                    processed.AddRange(ToOneHot(data[_layout.Subject], Subjects));
+                    processed.AddRange(ToOneHot(data[_layout.Subject], _config.Subjects));
                 }
                 else
                 {
@@ -107,7 +126,7 @@ namespace EtisPredictions.Preprocessor.Passes
             var secondHeaders = new List<string>();
             if (_oneHotYears)
             {
-                for (var i = 1; i <= Years; i++)
+                for (var i = 1; i <= _config.Years; i++)
                 {
                     secondHeaders.Add("Курс " + i);
                 }
@@ -119,7 +138,7 @@ namespace EtisPredictions.Preprocessor.Passes
 
             if (_oneHotTerms)
             {
-                for (var i = 1; i <= Terms; i++)
+                for (var i = 1; i <= _config.Terms; i++)
                 {
                     secondHeaders.Add("Триместр " + i);
                 }
@@ -131,7 +150,7 @@ namespace EtisPredictions.Preprocessor.Passes
 
             if (_oneHotCategories)
             {
-                for (var i = 1; i <= Categories; i++)
+                for (var i = 1; i <= _config.Categories; i++)
                 {
                     secondHeaders.Add("Категория " + i);
                 }
@@ -143,7 +162,7 @@ namespace EtisPredictions.Preprocessor.Passes
 
             if (_oneHotSubjects)
             {
-                for (var i = 1; i <= Subjects; i++)
+                for (var i = 1; i <= _config.Subjects; i++)
                 {
                     secondHeaders.Add("Предмет " + i);
                 }
@@ -163,22 +182,22 @@ namespace EtisPredictions.Preprocessor.Passes
             var originalCount = originalHeaders.Count(c => c == ',');
             if (_oneHotYears)
             {
-                originalCount += Years - 1;
+                originalCount += _config.Years - 1;
             }
 
             if (_oneHotTerms)
             {
-                originalCount += Terms - 1;
+                originalCount += _config.Terms - 1;
             }
 
             if (_oneHotCategories)
             {
-                originalCount += Categories - 1;
+                originalCount += _config.Categories - 1;
             }
 
             if (_oneHotSubjects)
             {
-                originalCount += Subjects - 1;
+                originalCount += _config.Subjects - 1;
             }
 
             var firstHeaders = new List<string>();
