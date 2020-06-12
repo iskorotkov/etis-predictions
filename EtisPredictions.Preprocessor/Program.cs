@@ -14,7 +14,6 @@ namespace EtisPredictions.Preprocessor
         private static string _buffersFolder;
         private static bool _addStats;
         private static bool _augment;
-        private static bool _shuffle;
         private static bool _useOhe;
         private static bool _useXlsx;
         private static Layout _layout = new Layout();
@@ -47,7 +46,6 @@ namespace EtisPredictions.Preprocessor
             int subjects = 50,
             bool stats = true,
             bool augment = true,
-            bool shuffle = true,
             bool ohe = true,
             bool xlsx = true,
             bool cleanup = true
@@ -61,7 +59,6 @@ namespace EtisPredictions.Preprocessor
             _output = output;
             _useXlsx = xlsx;
             _useOhe = ohe;
-            _shuffle = shuffle;
             _augment = augment;
             _addStats = stats;
             _buffersFolder = buffers;
@@ -154,20 +151,17 @@ namespace EtisPredictions.Preprocessor
             _buffersUsed--;
         }
 
-        private static async Task<Files> MakePasses(string from)
+        private static async Task<Files> MakePasses(string source)
         {
             if (_addStats)
             {
-                var to = NextBufferFile();
-                await new StatEnhancer(_layout).AddStatisticsParams(from, to, _encoding);
-                from = to;
+                source = await new StatEnhancer(_layout).Do(source, NextBufferFile(), _encoding);
             }
 
-            var trainFile = NextBufferFile();
-            var valFile = NextBufferFile();
-            var testFile = NextBufferFile();
-            var files = new Files(trainFile, valFile, testFile);
-            await new SetSplit().Split(from, files, new Rates(_valRate, _testRate), _encoding);
+            source = await new DataShuffler().Do(source, NextBufferFile(), _encoding);
+
+            var files = new Files(NextBufferFile(), NextBufferFile(), NextBufferFile());
+            await new SetSplit().Split(source, files, new Rates(_valRate, _testRate), _encoding);
 
             var resultFiles = new List<string>();
             foreach (var info in files.GetInfo())
@@ -178,30 +172,20 @@ namespace EtisPredictions.Preprocessor
             return new Files(resultFiles[0], resultFiles[1], resultFiles[2]);
         }
 
-        private static async Task<string> MakePassesOnSet(string from, bool train)
+        private static async Task<string> MakePassesOnSet(string source, bool train)
         {
             if (_augment && train)
             {
-                var to = NextBufferFile();
-                await new DataAugmenter(_layout).AddAugmentedData(from, to, _encoding);
-                from = to;
-            }
-
-            if (_shuffle)
-            {
-                var to = NextBufferFile();
-                await new DataShuffler().ShuffleData(from, to, _encoding);
-                from = to;
+                source = await new DataAugmenter(_layout).Do(source, NextBufferFile(), _encoding);
+                source = await new DataShuffler().Do(source, NextBufferFile(), _encoding);
             }
 
             if (_useOhe)
             {
-                var to = NextBufferFile();
-                await new OneHotEncoder(_layout, _config).UseOneHotEncoding(from, to, _encoding);
-                from = to;
+                source = await new OneHotEncoder(_layout, _config).Do(source, NextBufferFile(), _encoding);
             }
 
-            return from;
+            return source;
         }
     }
 }

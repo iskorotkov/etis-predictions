@@ -4,7 +4,7 @@ namespace EtisPredictions.Preprocessor.Sets
 {
     public class Rates
     {
-        public double Train { get; }
+        public double Train => 1.0 - Val - Test;
         public double Val { get; }
         public double Test { get; }
 
@@ -20,7 +20,6 @@ namespace EtisPredictions.Preprocessor.Sets
                 throw new ArgumentException("Sum of split rates is more then 1.");
             }
 
-            Train = 1.0 - val - test;
             Val = val;
             Test = test;
         }
