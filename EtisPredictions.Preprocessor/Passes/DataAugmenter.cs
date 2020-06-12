@@ -7,23 +7,25 @@ using System.Threading.Tasks;
 
 namespace EtisPredictions.Preprocessor.Passes
 {
-    public class DataAugmenter
+    public class DataAugmenter : IPass
     {
         private readonly double _minLevel;
         private readonly double _maxLevel;
         private readonly Layout _layout;
+        private int _times;
 
-        public DataAugmenter(Layout layout, double minLevel = 0.95, double maxLevel = 1.05)
+        public DataAugmenter(Layout layout, double minLevel = 0.95, double maxLevel = 1.05, int times = 50)
         {
+            _times = times;
             _layout = layout;
             _minLevel = minLevel;
             _maxLevel = maxLevel;
         }
 
-        public async Task AddAugmentedData(string from, string to, Encoding encoding, int times = 50)
+        public async Task<string> Do(string source, string destination, Encoding encoding)
         {
-            using var reader = new StreamReader(@from, encoding);
-            await using var file = new FileStream(to, FileMode.Create, FileAccess.Write);
+            using var reader = new StreamReader(source, encoding);
+            await using var file = new FileStream(destination, FileMode.Create, FileAccess.Write);
             await using var writer = new StreamWriter(file, encoding);
 
             await writer.WriteLineAsync(await reader.ReadLineAsync());
@@ -42,7 +44,7 @@ namespace EtisPredictions.Preprocessor.Passes
 
                 await writer.WriteLineAsync(line);
 
-                for (var i = 0; i < times; i++)
+                for (var i = 0; i < _times; i++)
                 {
                     var augmented = new List<string>();
                     augmented.AddRange(data[.._layout.Grant]);
@@ -53,6 +55,8 @@ namespace EtisPredictions.Preprocessor.Passes
                     await writer.WriteLineAsync(string.Join(',', augmented));
                 }
             }
+
+            return destination;
         }
 
         private double Augment(Random random, string data)

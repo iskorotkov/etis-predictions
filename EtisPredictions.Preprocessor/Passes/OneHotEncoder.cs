@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace EtisPredictions.Preprocessor.Passes
 {
-    public class OneHotEncoder
+    public class OneHotEncoder : IPass
     {
         private readonly Layout _layout;
         private readonly bool _oneHotYears;
@@ -50,10 +50,10 @@ namespace EtisPredictions.Preprocessor.Passes
             public int Subjects { get; }
         }
 
-        public async Task UseOneHotEncoding(string from, string to, Encoding encoding)
+        public async Task<string> Do(string source, string destination, Encoding encoding)
         {
-            using var reader = new StreamReader(@from, encoding);
-            await using var file = new FileStream(to, FileMode.Create, FileAccess.Write);
+            using var reader = new StreamReader(source, encoding);
+            await using var file = new FileStream(destination, FileMode.Create, FileAccess.Write);
             await using var writer = new StreamWriter(file, encoding);
 
             await WriteFirstHeaders(writer, await reader.ReadLineAsync());
@@ -110,6 +110,8 @@ namespace EtisPredictions.Preprocessor.Passes
                 processed.Add(data[_layout.Score]);
                 await writer.WriteLineAsync(string.Join(',', processed));
             }
+
+            return destination;
         }
 
         private IEnumerable<string> ToOneHot(string selected, int total)

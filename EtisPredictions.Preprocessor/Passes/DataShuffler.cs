@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace EtisPredictions.Preprocessor.Passes
 {
-    public class DataShuffler
+    public class DataShuffler : IPass
     {
         private readonly Random _random = new Random();
         
@@ -23,12 +23,12 @@ namespace EtisPredictions.Preprocessor.Passes
             }
         }
 
-        public async Task ShuffleData(string from, string to, Encoding encoding)
+        public async Task<string> Do(string source, string destination, Encoding encoding)
         {
             var data = new List<string>();
             string header1;
             string header2;
-            using (var reader = new StreamReader(from, encoding))
+            using (var reader = new StreamReader(source, encoding))
             {
                 header1 = await reader.ReadLineAsync();
                 header2 = await reader.ReadLineAsync();
@@ -40,7 +40,7 @@ namespace EtisPredictions.Preprocessor.Passes
 
             Shuffle(data);
 
-            await using var fileStream = new FileStream(to, FileMode.Create, FileAccess.Write);
+            await using var fileStream = new FileStream(destination, FileMode.Create, FileAccess.Write);
             await using var writer = new StreamWriter(fileStream, encoding);
             await writer.WriteLineAsync(header1);
             await writer.WriteLineAsync(header2);
@@ -48,6 +48,8 @@ namespace EtisPredictions.Preprocessor.Passes
             {
                 await writer.WriteLineAsync(line);
             }
+
+            return destination;
         }
     }
 }

@@ -8,7 +8,7 @@ using EtisPredictions.Preprocessor.Statistics;
 
 namespace EtisPredictions.Preprocessor.Passes
 {
-    public class StatEnhancer
+    public class StatEnhancer: IPass
     {
         private readonly Layout _layout;
         private readonly int _sequenceLength;
@@ -42,14 +42,14 @@ namespace EtisPredictions.Preprocessor.Passes
             _analyzer = new StatAnalyzer(defaultValue);
         }
 
-        public async Task AddStatisticsParams(string input, string output, Encoding encoding)
+        public async Task<string> Do(string source, string destination, Encoding encoding)
         {
-            using var reader = new StreamReader(input, encoding);
+            using var reader = new StreamReader(source, encoding);
 
             var header1 = await reader.ReadLineAsync();
             var header2 = await reader.ReadLineAsync();
 
-            await using var file = new FileStream(output, FileMode.Create, FileAccess.Write);
+            await using var file = new FileStream(destination, FileMode.Create, FileAccess.Write);
             await using var writer = new StreamWriter(file, encoding);
             
             await WriteHeaders(writer, header1, header2);
@@ -86,6 +86,8 @@ namespace EtisPredictions.Preprocessor.Passes
                     await WriteLine(writer, data, stats);
                 }
             }
+
+            return destination;
         }
 
         private async Task WriteLine(StreamWriter writer, string[] data, StatValues stats)
