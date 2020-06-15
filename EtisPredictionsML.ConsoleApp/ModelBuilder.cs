@@ -24,7 +24,7 @@ namespace EtisPredictionsML.ConsoleApp
             SaveModel(MlContext, mlModel, modelFilepath, trainingDataView.Schema);
         }
 
-        public static IEstimator<ITransformer> BuildTrainingPipeline(MLContext mlContext)
+        public static IEstimator<ITransformer> BuildTrainingPipeline(MLContext mlContext, double learningRate = 0.002D)
         {
             var dataProcessPipeline = mlContext.Transforms.Concatenate("Features", "X1", "X2", "X3", "X4", "X5", "X6",
                 "X7", "X8", "X9", "X10", "X11", "X12", "X13", "X14", "X15", "X16", "X17", "X18", "X19", "X20", "X21",
@@ -32,7 +32,7 @@ namespace EtisPredictionsML.ConsoleApp
                 "X37", "X38", "X39", "X40", "X41", "X42", "X43", "X44", "X45", "X46", "X47", "X48", "X49", "X50", "X51",
                 "X52", "X53");
 
-            var trainer = mlContext.Regression.Trainers.LightGbm("D1");
+            var trainer = mlContext.Regression.Trainers.Gam("D1", learningRate: learningRate);
             return dataProcessPipeline.Append(trainer);
         }
 

@@ -25,16 +25,57 @@ namespace EtisPredictionsML.ConsoleApp
             trainCommand.ConfigureFromMethod(typeof(Program).GetMethod(nameof(TrainAndEvaluateModel)));
             rootCommand.AddCommand(trainCommand);
 
+            var lrCommand = new Command("lr");
+            lrCommand.ConfigureFromMethod(typeof(Program).GetMethod(nameof(IterateOverLearningSpeed)));
+            rootCommand.AddCommand(lrCommand);
+
             return await rootCommand.InvokeAsync(args);
         }
 
-        public static void TrainAndEvaluateModel(string data, string model)
+        public static void IterateOverLearningSpeed(string train, string test,
+            double min = 0.001, double max = 0.05, double step = 0.001)
+        {
+            if (min >= max)
+            {
+                throw new ArgumentException($"Invalid Range: {nameof(min)} >= {nameof(max)}.");
+            }
+
+            if (step <= 0.0)
+            {
+                throw new ArgumentException($"Invalid iteration step: {nameof(step)} <= 0.");
+            }
+
+            var context = new MLContext(1);
+            var trainData = context.Data.LoadFromTextFile<ModelInput>(train, ',', true);
+            var testData = context.Data.LoadFromTextFile<ModelInput>(test, ',', true);
+            var lr = min;
+            while (lr <= max)
+            {
+                var pipeline = ModelBuilder.BuildTrainingPipeline(context, lr);
+                var transformer = ModelBuilder.TrainModel(trainData, pipeline);
+
+                var predictions = transformer.Transform(testData);
+                var metrics = context.Regression.Evaluate(predictions, "D1");
+                Console.WriteLine($"Learning rate = {lr}, RSquared = {metrics.RSquared}.");
+
+                if (metrics.RSquared < 0.0)
+                {
+                    break;
+                }
+
+                lr += step;
+            }
+        }
+
+        public static void TrainAndEvaluateModel(string train, string test, double lr = 0.035d)
         {
             var context = new MLContext(11);
-            var dataView = context.Data.LoadFromTextFile<ModelInput>(data, ',', true);
-            var pipeline = ModelBuilder.BuildTrainingPipeline(context);
-            var transformer = ModelBuilder.TrainModel(dataView, pipeline);
-            Evaluate(context, dataView, transformer);
+            var trainData = context.Data.LoadFromTextFile<ModelInput>(train, ',', true);
+            var pipeline = ModelBuilder.BuildTrainingPipeline(context, lr);
+            var transformer = ModelBuilder.TrainModel(trainData, pipeline);
+
+            var testData = context.Data.LoadFromTextFile<ModelInput>(test, ',', true);
+            Evaluate(context, testData, transformer);
         }
 
         public static void EvaluateExistingModel(string data, string model)
