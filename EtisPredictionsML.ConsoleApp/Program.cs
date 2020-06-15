@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.DragonFruit;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using EtisPredictionsML.Model;
@@ -67,7 +68,7 @@ namespace EtisPredictionsML.ConsoleApp
             }
         }
 
-        public static void TrainAndEvaluateModel(string train, string test, double lr = 0.035d)
+        public static void TrainAndEvaluateModel(string train, string test, string output, double lr = 0.035d)
         {
             var context = new MLContext(11);
             var trainData = context.Data.LoadFromTextFile<ModelInput>(train, ',', true);
@@ -75,18 +76,18 @@ namespace EtisPredictionsML.ConsoleApp
             var transformer = ModelBuilder.TrainModel(trainData, pipeline);
 
             var testData = context.Data.LoadFromTextFile<ModelInput>(test, ',', true);
-            Evaluate(context, testData, transformer);
+            Evaluate(context, testData, transformer, output);
         }
 
-        public static void EvaluateExistingModel(string data, string model)
+        public static void EvaluateExistingModel(string data, string model, string output)
         {
             var context = new MLContext(1);
             var dataView = context.Data.LoadFromTextFile<ModelInput>(data, hasHeader: true, separatorChar: ',');
             var transformer = context.Model.Load(model, out _);
-            Evaluate(context, dataView, transformer);
+            Evaluate(context, dataView, transformer, output);
         }
 
-        private static void Evaluate(MLContext context, IDataView dataView, ITransformer transformer)
+        private static void Evaluate(MLContext context, IDataView dataView, ITransformer transformer, string output)
         {
             var predictions = transformer.Transform(dataView);
             PrintMetrics(context, predictions);
@@ -96,6 +97,17 @@ namespace EtisPredictionsML.ConsoleApp
             PrintMaxErrors(results);
             PrintErrorMedian(results);
             PrintMeanRelativeError(results);
+            SaveResults(results, output);
+        }
+
+        private static void SaveResults(IEnumerable<Record> results, string path)
+        {
+            using var writer = new StreamWriter(path);
+            writer.WriteLine("index,actual,predicted,error");
+            foreach (var record in results)
+            {
+                writer.WriteLine($"{record.Index},{record.Actual},{record.Predicted},{record.Error}");
+            }
         }
 
         private static void PrintMeanRelativeError(Record[] results)
